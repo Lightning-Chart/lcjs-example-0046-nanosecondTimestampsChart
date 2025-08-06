@@ -63,32 +63,35 @@ const chart = lc
     })
     .setTitle('Nanosecond timestamp chart')
 
-// NOTE: LCJS can't directly consume bigint64array
-// shift bigint64 data to start from near 0 in order to store it in float64array without losing nanosecond precision
-const xsShifted = new Float64Array(sampleCount)
-const shiftDate = new Date(Number(data.x[0] / BigInt('1000000')))
-shiftDate.setHours(0, 0, 0, 0)
+// LCJS can't directly consume BigInt64Array
+// shift bigint64 data to start from near 0 in order to store it in Float64Array without losing nanosecond precision
+const xsShifted = new Float64Array(data.x.length)
+const shiftDate = new Date(Number(data.x[0]) / 1_000_000)
+shiftDate.setUTCHours(0, 0, 0, 0)
 const shiftOrigin = shiftDate.getTime()
 const shiftOriginNanos = BigInt(shiftOrigin) * BigInt(1_000_000)
-for (let i = 0; i < sampleCount; i++) {
+for (let i = 0; i < data.x.length; i++) {
     xsShifted[i] = Number(data.x[i] - shiftOriginNanos) / 1_000_000
 }
-console.log('shifted data', xsShifted)
 
 const series = chart
-    .addPointLineAreaSeries({ dataPattern: 'ProgressiveX' })
+    .addLineSeries({
+        schema: {
+            xValues: { pattern: 'progressive' },
+            yValues: { pattern: null },
+        },
+    })
     .setAreaFillStyle(emptyFill)
     .setStrokeStyle((stroke) => stroke.setThickness(-1))
     .appendSamples({ xValues: xsShifted, yValues: data.y })
 
-chart.axisX
-    .setTickStrategy(AxisTickStrategies.DateTime, (strategy) =>
-        strategy
-            // This will result in library accounting for the previous shift by first timestamp
-            .setDateOrigin(shiftDate),
-    )
-    // Apply default view for demo purposes. Note that these are shifted millisecond timestamps.
-    .setInterval({ start: 86159532.54587169, end: 86159532.54595785 })
+chart.axisX.setTickStrategy(AxisTickStrategies.DateTime, (strategy) => strategy.setDateOrigin(shiftDate))
+
+// Apply default view for demo purposes. Note that these are shifted millisecond timestamps.
+chart.axisX.setInterval({
+    end: 78959532.55768886,
+    start: 78959532.55760992,
+})
 
 // Add ZBC just to show the absurd zoom in capability
 const zoomBandChart = lc.ZoomBandChart({ container: containerChart2 })
